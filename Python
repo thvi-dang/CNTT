@@ -1,0 +1,143 @@
+# a. Phương thức Cập nhật số lượng tồn
+    def CapNhatSoLuongTon(self, maThuoc: int, soLuongNhapThem: int):
+        # Duyệt qua từng viên thuốc trong danh sách
+        for thuoc in self.danhSachThuoc:
+            # Kiểm tra xem mã thuốc có trùng khớp không
+            if thuoc.MaThuoc == maThuoc:
+                # Nếu tìm thấy: Cộng dồn số lượng mới vào số lượng tồn
+                thuoc.SoLuongTon = thuoc.SoLuongTon + soLuongNhapThem
+                # Cập nhật thành công thì trả về True và thoát khỏi hàm ngay
+                return True
+        
+        # Nếu chạy hết vòng lặp mà không tìm thấy thuốc nào khớp mã
+        return False
+
+# b. Phương thức Tìm kiếm thuốc theo Nhà sản xuất
+    def TimKiemThuocTheoNhaSanXuat(self, nhaSanXuat: str):
+        # Tạo một danh sách rỗng để chứa kết quả tìm được
+        ket_qua = []
+        
+        # Đổi từ khóa tìm kiếm về chữ thường để so sánh (không phân biệt hoa thường)
+        tu_khoa = nhaSanXuat.lower()
+
+        # Duyệt qua danh sách thuốc
+        for thuoc in self.danhSachThuoc:
+            # Lấy tên nhà sản xuất của thuốc hiện tại và đổi về chữ thường
+            ten_nsx_hien_tai = thuoc.NhaSanXuat.lower()
+            
+            # So sánh hai chuỗi
+            if ten_nsx_hien_tai == tu_khoa:
+                # Nếu khớp thì thêm thuốc đó vào danh sách kết quả
+                ket_qua.append(thuoc)
+        
+        # Trả về danh sách các thuốc tìm thấy (nếu không có thì danh sách này vẫn rỗng)
+        return ket_qua
+
+
+
+
+# c. Phương thức Thêm Đơn Thuốc (có kiểm tra lỗi)
+    def ThemDonThuoc(self, dt):
+        # --- BƯỚC 1: KIỂM TRA MÃ BỆNH NHÂN ---
+        # Giả sử ban đầu là chưa tìm thấy bệnh nhân
+        tim_thay_bn = False 
+        for bn in self.danhSachBN:
+            if bn.MaBN == dt.MaBN:
+                tim_thay_bn = True
+                break # Tìm thấy rồi thì dừng tìm
+        
+        # Nếu chạy hết vòng lặp mà vẫn không thấy -> Lỗi
+        if tim_thay_bn == False:
+            return False
+
+        # --- BƯỚC 2: KIỂM TRA TỪNG CHI TIẾT ĐƠN THUỐC ---
+        # Ta phải duyệt xem thuốc có tồn tại không, đủ hàng không, giá đúng không
+        for chi_tiet in dt.ChiTiet:
+            
+            # Tìm thuốc trong kho tương ứng với mã trong chi tiết
+            thuoc_trong_kho = None
+            for t in self.danhSachThuoc:
+                if t.MaThuoc == chi_tiet.MaThuoc:
+                    thuoc_trong_kho = t
+                    break
+            
+            # 2.1 Kiểm tra thuốc có tồn tại không
+            if thuoc_trong_kho == None:
+                return False 
+            
+            # 2.2 Kiểm tra số lượng (phải > 0 và <= tồn kho)
+            if chi_tiet.SoLuong <= 0:
+                return False
+            if chi_tiet.SoLuong > thuoc_trong_kho.SoLuongTon:
+                return False
+
+            # 2.3 Kiểm tra giá bán (phải >= Giá nhập * 1.1)
+            gia_toi_thieu = thuoc_trong_kho.GiaNhap * 1.1
+            if chi_tiet.DonGia < gia_toi_thieu:
+                return False
+
+        # --- BƯỚC 3: CẬP NHẬT KHO VÀ LƯU (KHI TẤT CẢ ĐỀU HỢP LỆ) ---
+        # Nếu code chạy được đến đây nghĩa là không có lỗi nào xảy ra ở trên
+        
+        # Cập nhật trừ tồn kho
+        for chi_tiet in dt.ChiTiet:
+            for t in self.danhSachThuoc:
+                if t.MaThuoc == chi_tiet.MaThuoc:
+                    t.SoLuongTon = t.SoLuongTon - chi_tiet.SoLuong
+                    break
+        
+        # Thêm đơn thuốc vào danh sách
+        self.danhSachDT.append(dt)
+        return True
+
+    # d. Phương thức Thống kê Bệnh nhân chi tiêu nhiều nhất
+    def ThongKeBenhNhanChiTieuNhieuNhat(self, thang: int, nam: int):
+        # Biến để lưu người chi tiêu cao nhất tìm được
+        bn_max = None
+        # Biến để lưu số tiền cao nhất tìm được (khởi tạo -1 để so sánh)
+        tien_max = -1
+
+        # Duyệt qua từng bệnh nhân trong danh sách
+        for bn in self.danhSachBN:
+            
+            # Tính tổng tiền thực tế bệnh nhân này đã mua trong tháng/năm đó
+            tong_tien_cua_bn = 0
+            
+            # Duyệt qua tất cả các đơn thuốc
+            for dt in self.danhSachDT:
+                # Kiểm tra 3 điều kiện: 
+                # 1. Đúng mã bệnh nhân
+              # 2. Đúng tháng
+                # 3. Đúng năm
+                if dt.MaBN == bn.MaBN and dt.NgayKe.month == thang and dt.NgayKe.year == nam:
+                    
+                    # Tính tổng tiền chi tiết của đơn này
+                    tien_don_hang = 0
+                    for ct in dt.ChiTiet:
+                        tien_don_hang = tien_don_hang + (ct.DonGia * ct.SoLuong)
+                    
+                    # Lấy tỉ lệ chiết khấu dựa trên loại BN
+                    # (Dùng vòng lặp để lấy chiết khấu từ dict cho đơn giản, dễ hiểu)
+                    ti_le_giam = 0.0
+                    for loai, ti_le in self.chietKhauTheoLoai.items():
+                        if loai == bn.LoaiBN:
+                            ti_le_giam = ti_le
+                            break
+                    
+                    # Tính tiền thực tế = Tiền gốc * (1 - %giảm)
+                    tien_thuc_te = tien_don_hang * (1 - ti_le_giam)
+                    
+                    # Cộng dồn vào tổng chi tiêu của bệnh nhân
+                    tong_tien_cua_bn = tong_tien_cua_bn + tien_thuc_te
+
+            # Sau khi tính xong tổng tiền của bệnh nhân này
+            # So sánh với kỷ lục hiện tại
+            if tong_tien_cua_bn > tien_max:
+                tien_max = tong_tien_cua_bn
+                bn_max = bn # Lưu lại bệnh nhân này là người cao nhất hiện tại
+        
+        # Nếu không có đơn thuốc nào (tien_max vẫn là -1) hoặc bằng 0 -> Trả về None (null)
+        if tien_max <= 0:
+            return None
+            
+        return bn_max
