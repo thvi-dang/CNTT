@@ -1,0 +1,135 @@
+# a. Phương thức Cập nhật số lượng tồn
+    def CapNhatSoLuongTon(self, maSP: int, soLuongNhapThem: int):
+        # Duyệt qua từng sản phẩm trong danh sách
+        for sp in self.danhSachSP:
+            # Kiểm tra xem mã sản phẩm có khớp không
+            if sp.MaSP == maSP:
+                # Nếu tìm thấy: Cộng thêm số lượng vào kho
+                sp.SoLuongTon = sp.SoLuongTon + soLuongNhapThem
+                # Cập nhật xong thì báo thành công (True) và thoát hàm ngay
+                return True
+        
+        # Nếu đi hết danh sách mà không thấy mã nào khớp
+        return False
+
+    # b. Phương thức Tìm kiếm sản phẩm theo Nhà cung cấp
+    def TimKiemSanPhamTheoNhaCungCap(self, nhaCungCap: str):
+        # Tạo danh sách rỗng để chứa kết quả tìm được
+        ket_qua = []
+        
+        # Đổi từ khóa tìm kiếm về chữ thường (để không phân biệt hoa/thường)
+        # Ví dụ: "Vinamilk" -> "vinamilk"
+        tu_khoa = nhaCungCap.lower()
+
+        # Duyệt qua tất cả sản phẩm đang có
+        for sp in self.danhSachSP:
+            # Lấy tên Nhà cung cấp của sản phẩm hiện tại, đổi về chữ thường
+            ncc_hien_tai = sp.NhaCungCap.lower()
+            
+            # So sánh
+            if ncc_hien_tai == tu_khoa:
+                # Nếu khớp thì thêm sản phẩm đó vào danh sách kết quả
+                ket_qua.append(sp)
+        
+        # Trả về danh sách kết quả
+        return ket_qua
+      # c. Phương thức Thêm Hóa Đơn (có kiểm tra ràng buộc)
+    def ThemHoaDon(self, hd):
+        # --- BƯỚC 1: KIỂM TRA KHÁCH HÀNG CÓ TỒN TẠI KHÔNG ---
+        tim_thay_kh = False
+        for kh in self.danhSachKH:
+            if kh.MaKH == hd.MaKH:
+                tim_thay_kh = True
+                break
+        
+        # Nếu không tìm thấy khách hàng -> Hủy bỏ
+        if tim_thay_kh == False:
+            return False
+
+        # --- BƯỚC 2: KIỂM TRA CHI TIẾT HÓA ĐƠN ---
+        for chi_tiet in hd.ChiTiet:
+            
+            # Tìm sản phẩm trong kho dựa vào mã
+            sp_trong_kho = None
+            for sp in self.danhSachSP:
+                if sp.MaSP == chi_tiet.MaSP:
+                    sp_trong_kho = sp
+                    break
+            
+            # 2.1 Kiểm tra sản phẩm có tồn tại không
+            if sp_trong_kho == None:
+                return False
+            
+            # 2.2 Kiểm tra số lượng bán (phải > 0 và <= tồn kho)
+            if chi_tiet.SoLuongBan <= 0:
+                return False
+            if chi_tiet.SoLuongBan > sp_trong_kho.SoLuongTon:
+                return False
+
+            # 2.3 Kiểm tra giá bán (phải >= Giá nhập * 1.1)
+            gia_toi_thieu = sp_trong_kho.GiaNhap * 1.1
+            if chi_tiet.DonGiaBan < gia_toi_thieu:
+                return False
+
+        # --- BƯỚC 3: CẬP NHẬT KHO VÀ LƯU (KHI KHÔNG CÓ LỖI) ---
+        
+        # Trừ tồn kho cho từng sản phẩm
+        for chi_tiet in hd.ChiTiet:
+            for sp in self.danhSachSP:
+                if sp.MaSP == chi_tiet.MaSP:
+                    sp.SoLuongTon = sp.SoLuongTon - chi_tiet.SoLuongBan
+                    break
+        
+        # Thêm hóa đơn vào danh sách quản lý
+        self.danhSachHD.append(hd)
+        return True
+
+    # d. Phương thức Thống kê Khách hàng mua nhiều nhất
+    def ThongKeKhachHangMuaNhieuNhat(self, thang: int, nam: int):
+        # Biến lưu khách hàng mua nhiều nhất (ban đầu chưa có ai)
+        kh_max = None
+        # Biến lưu số tiền kỷ lục (ban đầu đặt -1)
+        tien_max = -1
+        
+        # (Giả sử bạn đã có dict chiết khấu này trong __init__ giống bài Nhà thuốc)
+        # Nếu chưa có, bạn có thể định nghĩa tạm ở đây để dùng:
+        bang_chiet_khau = {"VIP": 0.1, "Thuong": 0.05, "Moi": 0.0}
+
+        # Duyệt qua từng khách hàng
+        for kh in self.danhSachKH:
+            
+            # Tính tổng tiền khách này đã mua trong tháng/năm yêu cầu
+            tong_tien_mua = 0
+            
+            # Duyệt qua các hóa đơn để tìm hóa đơn của khách này
+            for hd in self.danhSachHD:
+                # Kiểm tra 3 điều kiện: Đúng mã KH, Đúng tháng, Đúng năm
+                if hd.MaKH == kh.MaKH and hd.NgayLap.month == thang and hd.NgayLap.year == nam:
+                  # Tính tổng tiền hàng (chưa trừ chiết khấu) của hóa đơn này
+                    tien_hang = 0
+                    for ct in hd.ChiTiet:
+                        tien_hang = tien_hang + (ct.DonGiaBan * ct.SoLuongBan)
+                    
+                    # Tìm tỉ lệ chiết khấu của khách
+                    ti_le_giam = 0.0
+                    for loai, ti_le in bang_chiet_khau.items():
+                        if loai == kh.LoaiKH:
+                            ti_le_giam = ti_le
+                            break
+                    
+                    # Tính tiền thực trả = Tiền hàng * (1 - %giảm)
+                    tien_thuc_te = tien_hang * (1 - ti_le_giam)
+                    
+                    # Cộng dồn vào tổng thành tích của khách
+                    tong_tien_mua = tong_tien_mua + tien_thuc_te
+
+            # So sánh với người cao nhất hiện tại
+            if tong_tien_mua > tien_max:
+                tien_max = tong_tien_mua
+                kh_max = kh # Cập nhật người vô địch mới
+        
+        # Nếu không có dữ liệu (tien_max vẫn <= 0) thì trả về None (null)
+        if tien_max <= 0:
+            return None
+            
+        return kh_max
